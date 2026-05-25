@@ -90,8 +90,14 @@ export default function StatsPage({ params }: { params: Promise<{ id: string }> 
       {data.byDay.length > 0 && (
         <div className="mb-8 p-4 rounded-xl bg-zinc-50 dark:bg-zinc-900 border border-zinc-200 dark:border-zinc-800">
           <h2 className="text-lg font-semibold mb-4">Clicks by day</h2>
+          <style>{`
+            .chart-bar rect { fill: #18181b !important; }
+            .chart-bar rect:hover { fill: #fff !important; }
+            .dark .chart-bar rect { fill: #fff !important; }
+            .dark .chart-bar rect:hover { fill: #18181b !important; }
+          `}</style>
           <ResponsiveContainer width="100%" height={250}>
-            <BarChart data={data.byDay}>
+            <BarChart data={data.byDay} className="chart-bar">
               <CartesianGrid strokeDasharray="3 3" stroke="#e4e4e7" opacity={0.5} />
               <XAxis
                 dataKey="date"
