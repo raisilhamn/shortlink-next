@@ -2,6 +2,7 @@
 
 import { useState } from "react";
 import { useSearchParams, useRouter } from "next/navigation";
+import { toast } from "sonner";
 
 export default function ReportPage() {
   const searchParams = useSearchParams();
@@ -12,12 +13,10 @@ export default function ReportPage() {
   const [description, setDescription] = useState("");
   const [loading, setLoading] = useState(false);
   const [done, setDone] = useState(false);
-  const [error, setError] = useState("");
 
   async function handleSubmit(e: React.FormEvent) {
     e.preventDefault();
     setLoading(true);
-    setError("");
 
     try {
       const res = await fetch("/api/reports", {
@@ -28,13 +27,14 @@ export default function ReportPage() {
 
       if (!res.ok) {
         const data = await res.json();
-        setError(data.error || "Failed to submit report");
+        toast.error(data.error || "Failed to submit report");
         return;
       }
 
       setDone(true);
+      toast.success("Report submitted");
     } catch {
-      setError("Network error");
+      toast.error("Network error");
     } finally {
       setLoading(false);
     }
@@ -80,9 +80,6 @@ export default function ReportPage() {
             className="w-full px-3 py-2.5 rounded-xl border border-zinc-300 bg-white text-sm resize-none"
           />
         </div>
-        {error && (
-          <div className="p-3 rounded-lg bg-red-50 border border-red-200 text-red-700 text-sm">{error}</div>
-        )}
         <button
           type="submit"
           disabled={loading}
