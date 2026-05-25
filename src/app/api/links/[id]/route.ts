@@ -3,8 +3,38 @@ import { db } from "@/lib/db";
 import { links, slugAliases } from "@/lib/schema";
 import { updateLinkSchema } from "@/lib/validations";
 import { auth } from "@/lib/auth";
-import { eq, and } from "drizzle-orm";
+import { eq } from "drizzle-orm";
 import { v4 as uuidv4 } from "uuid";
+
+export async function GET(
+  request: NextRequest,
+  { params }: { params: Promise<{ id: string }> }
+) {
+  const session = await auth();
+  if (!session?.user) {
+    return Response.json({ error: "Unauthorized" }, { status: 401 });
+  }
+
+  const { id } = await params;
+  const userId = (session.user as any).id;
+
+  const link = await db
+    .select()
+    .from(links)
+    .where(eq(links.id, id))
+    .limit(1)
+    .then((r) => r[0]);
+
+  if (!link) {
+    return Response.json({ error: "Not found" }, { status: 404 });
+  }
+
+  if (link.userId !== userId) {
+    return Response.json({ error: "Forbidden" }, { status: 403 });
+  }
+
+  return Response.json({ link });
+}
 
 export async function PATCH(
   request: NextRequest,

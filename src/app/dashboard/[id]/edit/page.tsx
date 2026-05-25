@@ -18,23 +18,22 @@ export default function EditLinkPage() {
   useEffect(() => {
     async function fetchLink() {
       try {
-        const res = await fetch("/api/links");
-        const data = await res.json();
-        const link = data.links?.find((l: any) => l.id === id);
-        if (link) {
-          setDestination(link.destination);
-          setSlug(link.slug);
-        } else {
-          setError("Link not found");
+        const res = await fetch(`/api/links/${id}`);
+        if (!res.ok) {
+          if (res.status === 401) return router.push("/login");
+          throw new Error(res.status === 404 ? "Link not found" : "Failed to load link");
         }
-      } catch {
-        setError("Failed to load link");
+        const data = await res.json();
+        setDestination(data.link.destination);
+        setSlug(data.link.slug);
+      } catch (e: any) {
+        setError(e.message);
       } finally {
         setLoading(false);
       }
     }
     fetchLink();
-  }, [id]);
+  }, [id, router]);
 
   async function handleSubmit(e: React.FormEvent) {
     e.preventDefault();
@@ -85,7 +84,14 @@ export default function EditLinkPage() {
     }
   }
 
-  if (loading) return <div className="max-w-lg mx-auto px-4 py-10 text-zinc-400">Loading...</div>;
+  if (loading) return (
+    <div className="max-w-lg mx-auto px-4 py-10 flex justify-center">
+      <svg className="animate-spin h-6 w-6 text-zinc-400" viewBox="0 0 24 24" fill="none">
+        <circle className="opacity-25" cx="12" cy="12" r="10" stroke="currentColor" strokeWidth="4" />
+        <path className="opacity-75" fill="currentColor" d="M4 12a8 8 0 018-8V0C5.373 0 0 5.373 0 12h4z" />
+      </svg>
+    </div>
+  );
 
   return (
     <div className="max-w-lg mx-auto px-4 py-10">
