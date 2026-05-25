@@ -6,6 +6,7 @@ import { headers } from "next/headers";
 import { getClientIP, lookupCountry } from "@/lib/ip-lookup";
 import { v4 as uuidv4 } from "uuid";
 import { createHash } from "crypto";
+import QrModal from "@/components/qr-modal";
 
 export default async function RedirectPage({
   params,
@@ -180,6 +181,7 @@ function DisabledPage() {
 }
 
 function DisclaimerPage({ destination, slug, linkId }: { destination: string; slug: string; linkId: string }) {
+  const origin = process.env.NEXT_PUBLIC_APP_URL || "https://s.raisilham.com";
   return (
     <html lang="en">
       <body>
@@ -215,6 +217,9 @@ function DisclaimerPage({ destination, slug, linkId }: { destination: string; sl
             >
               Report this link
             </a>
+            <div className="mt-4">
+              <QrModal url={`${origin}/s/${slug}`} slug={slug} />
+            </div>
           </div>
 
           <p className="mt-6 text-sm text-zinc-400">

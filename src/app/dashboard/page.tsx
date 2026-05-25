@@ -5,6 +5,7 @@ import { getSession } from "@/lib/auth-helpers";
 import { redirect } from "next/navigation";
 import Link from "next/link";
 import CopyButton from "@/components/copy-button";
+import QrModal from "@/components/qr-modal";
 
 export const dynamic = "force-dynamic";
 
@@ -92,6 +93,7 @@ export default async function DashboardPage() {
               </div>
               <div className="flex items-center gap-3 mt-3 pt-3 border-t border-zinc-200 dark:border-zinc-800">
                 <CopyButton text={`${origin}/s/${link.slug}`} />
+                <QrModal url={`${origin}/s/${link.slug}`} slug={link.slug} />
                 <Link
                   href={`/dashboard/${link.id}/stats`}
                   className="text-xs text-zinc-500 hover:text-zinc-700 dark:hover:text-zinc-300"
