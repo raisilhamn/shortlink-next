@@ -4,6 +4,8 @@ A URL shortener with click analytics. Built with Next.js, Drizzle ORM, Turso (SQ
 
 Public links expire in 7 days. Signed-in users get permanent links with full analytics (clicks by country, referrer, daily chart). Admin panel for moderation.
 
+**Live at [s.raisilham.com](https://s.raisilham.com)**
+
 ## Stack
 
 - Next.js 16 (App Router)
