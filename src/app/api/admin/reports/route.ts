@@ -21,7 +21,7 @@ export async function GET(request: NextRequest) {
       destination: links.destination,
       slug: links.slug,
       linkStatus: links.status,
-      reportCount: sql<number>`(SELECT count(*) FROM reports r WHERE r.link_id = ${reports.linkId})`,
+      reportCount: sql<number>`(SELECT count(*) FROM reports r WHERE r.link_id = ${reports.linkId})`.as('report_count'),
     })
     .from(reports)
     .innerJoin(links, eq(reports.linkId, links.id))
