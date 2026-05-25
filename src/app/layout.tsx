@@ -4,6 +4,7 @@ import "./globals.css";
 import { getSession } from "@/lib/auth-helpers";
 import SignOutButton from "./signout-button";
 import { Toaster } from "@/components/ui/sonner";
+import { Analytics } from "@vercel/analytics/next";
 
 const geistSans = Geist({
   variable: "--font-geist-sans",
@@ -64,6 +65,7 @@ export default async function RootLayout({
         </header>
         <main className="flex-1">{children}</main>
         <Toaster />
+        <Analytics />
       </body>
     </html>
   );
