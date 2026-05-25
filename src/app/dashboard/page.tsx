@@ -96,13 +96,13 @@ export default async function DashboardPage() {
                 <QrModal url={`${origin}/s/${link.slug}`} slug={link.slug} />
                 <Link
                   href={`/dashboard/${link.id}/stats`}
-                  className="text-xs text-zinc-500 hover:text-zinc-700 dark:hover:text-zinc-300"
+                  className="px-2.5 py-1.5 rounded-lg bg-zinc-200 dark:bg-zinc-800 text-xs font-medium hover:bg-zinc-300 dark:hover:bg-zinc-700"
                 >
                   Stats
                 </Link>
                 <Link
                   href={`/dashboard/${link.id}/edit`}
-                  className="text-xs text-zinc-500 hover:text-zinc-700 dark:hover:text-zinc-300"
+                  className="px-2.5 py-1.5 rounded-lg bg-zinc-200 dark:bg-zinc-800 text-xs font-medium hover:bg-zinc-300 dark:hover:bg-zinc-700"
                 >
                   Edit
                 </Link>

@@ -42,7 +42,7 @@ export default function QrModal({ url, slug }: QrModalProps) {
   return (
     <Dialog onOpenChange={generateQr}>
       <DialogTrigger asChild>
-        <button className="text-xs text-zinc-500 hover:text-zinc-700 dark:hover:text-zinc-300">
+        <button className="px-2.5 py-1.5 rounded-lg bg-zinc-200 dark:bg-zinc-800 text-xs font-medium hover:bg-zinc-300 dark:hover:bg-zinc-700 cursor-pointer shrink-0">
           QR
         </button>
       </DialogTrigger>
