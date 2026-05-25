@@ -3,6 +3,7 @@ import { links, clicks } from "@/lib/schema";
 import { desc, eq, sql } from "drizzle-orm";
 import { getSession } from "@/lib/auth-helpers";
 import { redirect } from "next/navigation";
+import LinkActions from "./link-actions";
 
 export const dynamic = "force-dynamic";
 
@@ -34,10 +35,18 @@ export default async function AdminLinksPage() {
       <a href="/admin" className="text-sm text-zinc-500 hover:text-zinc-700 dark:hover:text-zinc-300">
         &larr; Back to admin
       </a>
-      <h1 className="text-2xl font-bold mt-2 mb-6">All links</h1>
+      <div className="flex items-center justify-between mt-2 mb-6">
+        <h1 className="text-2xl font-bold">All links</h1>
+        <a
+          href="/admin/links/deactivated"
+          className="text-xs px-3 py-1.5 rounded-lg bg-zinc-200 dark:bg-zinc-800 hover:bg-zinc-300 dark:hover:bg-zinc-700"
+        >
+          Deactivated links
+        </a>
+      </div>
 
       <div className="-mx-4 sm:mx-0 overflow-x-auto">
-        <table className="w-full text-sm min-w-[600px]">
+        <table className="w-full text-sm min-w-[700px]">
           <thead>
             <tr className="border-b border-zinc-200 dark:border-zinc-800 text-left">
               <th className="pb-3 font-medium text-zinc-500">Slug</th>
@@ -46,6 +55,7 @@ export default async function AdminLinksPage() {
               <th className="pb-3 font-medium text-zinc-500">Status</th>
               <th className="pb-3 font-medium text-zinc-500">Clicks</th>
               <th className="pb-3 font-medium text-zinc-500">Created</th>
+              <th className="pb-3 font-medium text-zinc-500">Actions</th>
             </tr>
           </thead>
           <tbody>
@@ -76,6 +86,9 @@ export default async function AdminLinksPage() {
                 <td className="py-3 font-mono text-zinc-500">{countMap[link.id] || 0}</td>
                 <td className="py-3 text-zinc-400 text-xs">
                   {new Date(link.createdAt * 1000).toLocaleDateString()}
+                </td>
+                <td className="py-3">
+                  <LinkActions linkId={link.id} currentStatus={link.status} />
                 </td>
               </tr>
             ))}
