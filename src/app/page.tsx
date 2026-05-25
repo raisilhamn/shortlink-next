@@ -1,6 +1,8 @@
 "use client";
 
 import { useState, useEffect } from "react";
+import { toast } from "sonner";
+import CopyButton from "@/components/copy-button";
 
 interface LinkItem {
   shortUrl: string;
@@ -14,7 +16,6 @@ export default function HomePage() {
   const [result, setResult] = useState<{ shortUrl: string; slug: string; expiresAt: number } | null>(null);
   const [error, setError] = useState("");
   const [loading, setLoading] = useState(false);
-  const [copied, setCopied] = useState(false);
   const [history, setHistory] = useState<LinkItem[]>([]);
 
   useEffect(() => {
@@ -56,26 +57,19 @@ export default function HomePage() {
         const detail = data.details
           ? Object.entries(data.details).map(([k, v]) => (v as string[]).join(", ")).join("; ")
           : "";
-        setError(data.error + (detail ? ` — ${detail}` : ""));
+        toast.error(data.error + (detail ? ` — ${detail}` : ""));
         return;
       }
 
       setResult(data);
       addToHistory({ shortUrl: data.shortUrl, slug: data.slug, destination: url, createdAt: Date.now() });
       setUrl("");
+      toast.success("Short link created!");
     } catch {
-      setError("Network error. Please try again.");
+      toast.error("Network error. Please try again.");
     } finally {
       setLoading(false);
     }
-  }
-
-  async function copyToClipboard(text: string) {
-    try {
-      await navigator.clipboard.writeText(text);
-      setCopied(true);
-      setTimeout(() => setCopied(false), 2000);
-    } catch {}
   }
 
   return (
@@ -125,12 +119,7 @@ export default function HomePage() {
             >
               {result.shortUrl}
             </a>
-            <button
-              onClick={() => copyToClipboard(result.shortUrl)}
-              className="shrink-0 px-3 py-2 rounded-lg bg-zinc-200 dark:bg-zinc-800 text-sm font-medium hover:bg-zinc-300 dark:hover:bg-zinc-700 cursor-pointer"
-            >
-              {copied ? "Copied!" : "Copy"}
-            </button>
+            <CopyButton text={result.shortUrl} />
           </div>
         </div>
       )}
@@ -162,12 +151,7 @@ export default function HomePage() {
                   </a>
                   <p className="text-xs text-zinc-400 truncate mt-0.5">{item.destination}</p>
                 </div>
-                <button
-                  onClick={() => copyToClipboard(item.shortUrl)}
-                  className="shrink-0 px-2.5 py-1.5 rounded-lg bg-zinc-200 dark:bg-zinc-800 text-xs font-medium hover:bg-zinc-300 dark:hover:bg-zinc-700 cursor-pointer"
-                >
-                  {copied ? "Copied!" : "Copy"}
-                </button>
+                <CopyButton text={item.shortUrl} />
               </div>
             ))}
           </div>

@@ -4,6 +4,7 @@ import { eq, desc, sql } from "drizzle-orm";
 import { getSession } from "@/lib/auth-helpers";
 import { redirect } from "next/navigation";
 import Link from "next/link";
+import CopyButton from "@/components/copy-button";
 
 export const dynamic = "force-dynamic";
 
@@ -31,6 +32,7 @@ export default async function DashboardPage() {
   );
 
   const countMap = Object.fromEntries(clickCounts.map((c) => [c.linkId, c.count]));
+  const origin = process.env.NEXT_PUBLIC_APP_URL || "https://shortlink-next-sigma.vercel.app";
 
   return (
     <div className="max-w-4xl mx-auto px-4 py-10">
@@ -83,12 +85,13 @@ export default async function DashboardPage() {
                     {link.destination}
                   </p>
                 </div>
-                <div className="text-right shrink-0">
+                <div className="text-right shrink-0 flex flex-col items-end gap-1">
                   <p className="text-lg font-semibold">{countMap[link.id] || 0}</p>
                   <p className="text-xs text-zinc-400">clicks</p>
                 </div>
               </div>
               <div className="flex items-center gap-3 mt-3 pt-3 border-t border-zinc-200 dark:border-zinc-800">
+                <CopyButton text={`${origin}/s/${link.slug}`} />
                 <Link
                   href={`/dashboard/${link.id}/stats`}
                   className="text-xs text-zinc-500 hover:text-zinc-700 dark:hover:text-zinc-300"

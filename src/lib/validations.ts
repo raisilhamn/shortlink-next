@@ -68,7 +68,7 @@ export const loginSchema = z.object({
   password: z.string().min(1, "Password is required"),
 });
 
-const INVITE_CODE = "raisgantengpengenshortlink";
+const INVITE_CODE = process.env.INVITE_CODE || "";
 
 export const registerSchema = z.object({
   name: z.string().min(2, "Name must be at least 2 characters").max(50),

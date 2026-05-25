@@ -3,6 +3,7 @@ import { Geist, Geist_Mono } from "next/font/google";
 import "./globals.css";
 import { getSession } from "@/lib/auth-helpers";
 import SignOutButton from "./signout-button";
+import { Toaster } from "@/components/ui/sonner";
 
 const geistSans = Geist({
   variable: "--font-geist-sans",
@@ -62,6 +63,7 @@ export default async function RootLayout({
           </div>
         </header>
         <main className="flex-1">{children}</main>
+        <Toaster />
       </body>
     </html>
   );

@@ -3,19 +3,18 @@
 import { useState } from "react";
 import { useRouter } from "next/navigation";
 import { signIn } from "next-auth/react";
+import { toast } from "sonner";
 
 export default function RegisterPage() {
   const [name, setName] = useState("");
   const [email, setEmail] = useState("");
   const [password, setPassword] = useState("");
   const [inviteCode, setInviteCode] = useState("");
-  const [error, setError] = useState("");
   const [loading, setLoading] = useState(false);
   const router = useRouter();
 
   async function handleSubmit(e: React.FormEvent) {
     e.preventDefault();
-    setError("");
     setLoading(true);
 
     try {
@@ -30,7 +29,7 @@ export default function RegisterPage() {
         const detail = data.details
           ? Object.entries(data.details).map(([k, v]) => `${k}: ${(v as string[]).join(", ")}`).join("; ")
           : "";
-        setError(data.error + (detail ? ` — ${detail}` : ""));
+        toast.error(data.error + (detail ? ` — ${detail}` : ""));
         return;
       }
 
@@ -48,7 +47,7 @@ export default function RegisterPage() {
       router.push("/dashboard");
       router.refresh();
     } catch {
-      setError("An error occurred. Please try again.");
+      toast.error("An error occurred. Please try again.");
     } finally {
       setLoading(false);
     }
@@ -103,11 +102,6 @@ export default function RegisterPage() {
             className="w-full px-3 py-2.5 rounded-xl border border-zinc-300 dark:border-zinc-700 bg-white dark:bg-zinc-900 text-sm focus:outline-none focus:ring-2 focus:ring-zinc-400"
           />
         </div>
-        {error && (
-          <div className="p-3 rounded-lg bg-red-50 dark:bg-red-950 border border-red-200 dark:border-red-800 text-red-700 dark:text-red-300 text-sm">
-            {error}
-          </div>
-        )}
         <button
           type="submit"
           disabled={loading}
