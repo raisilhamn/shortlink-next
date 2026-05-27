@@ -94,14 +94,28 @@ export default function StatsPage({ params }: { params: Promise<{ id: string }> 
         </div>
       </div>
 
+      {data.byCountry.length > 0 && (
+        <div className="mb-8 p-4 rounded-xl bg-zinc-50 dark:bg-zinc-900 border border-zinc-200 dark:border-zinc-800">
+          <h2 className="text-lg font-semibold mb-3">By country</h2>
+          <div className="space-y-1">
+            {data.byCountry.map((c) => (
+              <div key={c.countryCode || "unknown"} className="flex items-center justify-between text-sm py-1">
+                <span>{c.countryName || c.countryCode || "Unknown"}</span>
+                <span className="font-mono text-zinc-500">{c.count}</span>
+              </div>
+            ))}
+          </div>
+        </div>
+      )}
+
       {data.byDay.length > 0 && (
         <div className="mb-8 p-4 rounded-xl bg-zinc-50 dark:bg-zinc-900 border border-zinc-200 dark:border-zinc-800">
           <h2 className="text-lg font-semibold mb-4">Clicks by day</h2>
           <style>{`
-            .chart-bar rect { fill: #fff !important; }
-            .chart-bar rect:hover { fill: #18181b !important; }
-            .dark .chart-bar rect { fill: #18181b !important; }
-            .dark .chart-bar rect:hover { fill: #fff !important; }
+            .chart-bar rect { fill: #18181b !important; }
+            @media (prefers-color-scheme: dark) {
+              .chart-bar rect { fill: #fff !important; }
+            }
           `}</style>
           <ResponsiveContainer width="100%" height={250}>
             <BarChart data={data.byDay} className="chart-bar">
@@ -129,22 +143,8 @@ export default function StatsPage({ params }: { params: Promise<{ id: string }> 
         </div>
       )}
 
-      {data.byCountry.length > 0 && (
-        <div className="mb-8">
-          <h2 className="text-lg font-semibold mb-3">By country</h2>
-          <div className="space-y-1">
-            {data.byCountry.map((c) => (
-              <div key={c.countryCode || "unknown"} className="flex items-center justify-between text-sm py-1">
-                <span>{c.countryName || c.countryCode || "Unknown"}</span>
-                <span className="font-mono text-zinc-500">{c.count}</span>
-              </div>
-            ))}
-          </div>
-        </div>
-      )}
-
       {data.byReferrer.length > 0 && (
-        <div className="mb-8">
+        <div className="mb-8 p-4 rounded-xl bg-zinc-50 dark:bg-zinc-900 border border-zinc-200 dark:border-zinc-800">
           <h2 className="text-lg font-semibold mb-3">Top referrers</h2>
           <div className="space-y-1">
             {data.byReferrer.map((r) => (
