@@ -1,7 +1,7 @@
 "use client";
 
 import { useState, useEffect, use } from "react";
-import { BarChart, Bar, XAxis, YAxis, Tooltip, ResponsiveContainer, CartesianGrid } from "recharts";
+import { BarChart, Bar, XAxis, YAxis, Tooltip, ResponsiveContainer, CartesianGrid, LabelList } from "recharts";
 import { useRouter } from "next/navigation";
 
 interface StatsData {
@@ -121,27 +121,43 @@ export default function StatsPage({ params }: { params: Promise<{ id: string }> 
       {data.byDay.length > 0 && (
         <div className="mb-8 p-4 rounded-xl bg-zinc-50 dark:bg-zinc-900 border border-zinc-200 dark:border-zinc-800">
           <h2 className="text-lg font-semibold mb-4">Clicks by day</h2>
-          <ResponsiveContainer width="100%" height={250}>
-            <BarChart data={data.byDay}>
+          <style>{`
+            .chart-bar rect { fill: ${barFill}; }
+            .chart-bar rect:hover { fill: ${barFill === "#fff" ? "#e4e4e7" : "#27272a"}; }
+          `}</style>
+          <ResponsiveContainer width="100%" height={280}>
+            <BarChart data={data.byDay} className="chart-bar" margin={{ top: 20, bottom: 5 }}>
               <CartesianGrid strokeDasharray="3 3" stroke="#e4e4e7" opacity={0.5} />
               <XAxis
                 dataKey="date"
-                tick={{ fontSize: 11, fill: "#71717a" }}
+                tick={{ fontSize: 13, fill: "#71717a" }}
                 tickLine={false}
                 axisLine={false}
+                tickMargin={10}
                 tickFormatter={(v) => v.slice(5)}
               />
-              <YAxis allowDecimals={false} tick={{ fontSize: 11, fill: "#71717a" }} tickLine={false} axisLine={false} />
+              <YAxis allowDecimals={false} tick={{ fontSize: 13, fill: "#71717a" }} tickLine={false} axisLine={false} />
               <Tooltip
                 contentStyle={{
-                  background: "#fff",
-                  border: "1px solid #e4e4e7",
+                  background: barFill === "#fff" ? "#18181b" : "#fff",
+                  border: barFill === "#fff" ? "1px solid #3f3f46" : "1px solid #e4e4e7",
                   borderRadius: "8px",
-                  fontSize: "13px",
-                  color: "#18181b",
+                  fontSize: "14px",
+                  color: barFill === "#fff" ? "#fff" : "#18181b",
+                  padding: "8px 12px",
                 }}
+                cursor={{ fill: barFill === "#fff" ? "rgba(255,255,255,0.1)" : "rgba(24,24,27,0.08)" }}
               />
-              <Bar dataKey="count" fill={barFill} radius={[4, 4, 0, 0]} />
+              <Bar dataKey="count" fill={barFill} radius={[4, 4, 0, 0]}>
+                <LabelList
+                  dataKey="count"
+                  position="insideTop"
+                  fill={barFill === "#fff" ? "#fff" : "#18181b"}
+                  fontSize={12}
+                  fontWeight={600}
+                  offset={8}
+                />
+              </Bar>
             </BarChart>
           </ResponsiveContainer>
         </div>
