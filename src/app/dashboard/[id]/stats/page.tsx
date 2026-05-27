@@ -64,7 +64,7 @@ export default function StatsPage({ params }: { params: Promise<{ id: string }> 
         <a href="/dashboard" className="text-sm text-zinc-500 hover:text-zinc-700 dark:hover:text-zinc-300">
           &larr; Back to dashboard
         </a>
-        <h1 className="text-2xl font-bold mt-2">Link stats</h1>
+        <h1 className="text-2xl font-bold mt-2">Link Statistics</h1>
       </div>
 
       <div className="flex items-center gap-2 mb-6">
