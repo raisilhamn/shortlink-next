@@ -19,6 +19,16 @@ export default function StatsPage({ params }: { params: Promise<{ id: string }> 
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState("");
   const [days, setDays] = useState(30);
+  const [barFill, setBarFill] = useState("#18181b");
+
+  useEffect(() => {
+    const mq = window.matchMedia("(prefers-color-scheme: dark)");
+    setBarFill(mq.matches ? "#fff" : "#18181b");
+    const handler = (e: MediaQueryListEvent) =>
+      setBarFill(e.matches ? "#fff" : "#18181b");
+    mq.addEventListener("change", handler);
+    return () => mq.removeEventListener("change", handler);
+  }, []);
 
   useEffect(() => {
     setLoading(true);
@@ -111,14 +121,8 @@ export default function StatsPage({ params }: { params: Promise<{ id: string }> 
       {data.byDay.length > 0 && (
         <div className="mb-8 p-4 rounded-xl bg-zinc-50 dark:bg-zinc-900 border border-zinc-200 dark:border-zinc-800">
           <h2 className="text-lg font-semibold mb-4">Clicks by day</h2>
-          <style>{`
-            .chart-bar rect { fill: #18181b !important; }
-            @media (prefers-color-scheme: dark) {
-              .chart-bar rect { fill: #fff !important; }
-            }
-          `}</style>
           <ResponsiveContainer width="100%" height={250}>
-            <BarChart data={data.byDay} className="chart-bar">
+            <BarChart data={data.byDay}>
               <CartesianGrid strokeDasharray="3 3" stroke="#e4e4e7" opacity={0.5} />
               <XAxis
                 dataKey="date"
@@ -137,7 +141,7 @@ export default function StatsPage({ params }: { params: Promise<{ id: string }> 
                   color: "#18181b",
                 }}
               />
-              <Bar dataKey="count" fill="#18181b" radius={[4, 4, 0, 0]} opacity={0.85} />
+              <Bar dataKey="count" fill={barFill} radius={[4, 4, 0, 0]} />
             </BarChart>
           </ResponsiveContainer>
         </div>
