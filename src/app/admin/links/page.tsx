@@ -1,48 +1,41 @@
 import { db } from "@/lib/db";
 import { links, clicks } from "@/lib/schema";
-import { desc, eq, sql } from "drizzle-orm";
+import { desc, eq, sql, getTableColumns } from "drizzle-orm";
 import { getSession } from "@/lib/auth-helpers";
 import { redirect } from "next/navigation";
+import Link from "next/link";
 import LinkActions from "./link-actions";
 
 export const dynamic = "force-dynamic";
 
 export default async function AdminLinksPage() {
   const session = await getSession();
-  if (!session?.user || (session.user as any).role !== "admin") redirect("/dashboard");
+  if (!session?.user || session.user.role !== "admin") redirect("/dashboard");
 
   const allLinks = await db
-    .select()
+    .select({
+      ...getTableColumns(links),
+      clickCount: sql<number>`count(${clicks.id})`,
+    })
     .from(links)
+    .leftJoin(clicks, eq(clicks.linkId, links.id))
+    .groupBy(links.id)
     .orderBy(desc(links.createdAt))
     .limit(100);
 
-  const clickCounts = await Promise.all(
-    allLinks.map(async (link) => {
-      const count = await db
-        .select({ count: sql<number>`count(*)` })
-        .from(clicks)
-        .where(eq(clicks.linkId, link.id))
-        .then((r) => r[0].count);
-      return { linkId: link.id, count };
-    })
-  );
-
-  const countMap = Object.fromEntries(clickCounts.map((c) => [c.linkId, c.count]));
-
   return (
     <div className="max-w-5xl mx-auto px-4 py-10">
-      <a href="/admin" className="text-sm text-zinc-500 hover:text-zinc-700 dark:hover:text-zinc-300">
+      <Link href="/admin" className="text-sm text-zinc-500 hover:text-zinc-700 dark:hover:text-zinc-300">
         &larr; Back to admin
-      </a>
+      </Link>
       <div className="flex items-center justify-between mt-2 mb-6">
         <h1 className="text-2xl font-bold">All links</h1>
-        <a
+        <Link
           href="/admin/links/deactivated"
           className="text-xs px-3 py-1.5 rounded-lg bg-zinc-200 dark:bg-zinc-800 hover:bg-zinc-300 dark:hover:bg-zinc-700"
         >
           Deactivated links
-        </a>
+        </Link>
       </div>
 
       <div className="-mx-4 sm:mx-0 overflow-x-auto">
@@ -83,7 +76,7 @@ export default async function AdminLinksPage() {
                     {link.status}
                   </span>
                 </td>
-                <td className="py-3 font-mono text-zinc-500">{countMap[link.id] || 0}</td>
+                <td className="py-3 font-mono text-zinc-500">{link.clickCount}</td>
                 <td className="py-3 text-zinc-400 text-xs">
                   {new Date(link.createdAt * 1000).toLocaleDateString()}
                 </td>

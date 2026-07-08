@@ -3,12 +3,13 @@ import { auditLog } from "@/lib/schema";
 import { desc } from "drizzle-orm";
 import { getSession } from "@/lib/auth-helpers";
 import { redirect } from "next/navigation";
+import Link from "next/link";
 
 export const dynamic = "force-dynamic";
 
 export default async function AdminAuditPage() {
   const session = await getSession();
-  if (!session?.user || (session.user as any).role !== "admin") redirect("/dashboard");
+  if (!session?.user || session.user.role !== "admin") redirect("/dashboard");
 
   const logs = await db
     .select()
@@ -18,9 +19,9 @@ export default async function AdminAuditPage() {
 
   return (
     <div className="max-w-4xl mx-auto px-4 py-10">
-      <a href="/admin" className="text-sm text-zinc-500 hover:text-zinc-700 dark:hover:text-zinc-300">
+      <Link href="/admin" className="text-sm text-zinc-500 hover:text-zinc-700 dark:hover:text-zinc-300">
         &larr; Back to admin
-      </a>
+      </Link>
       <h1 className="text-2xl font-bold mt-2 mb-6">Audit log</h1>
 
       {logs.length === 0 ? (

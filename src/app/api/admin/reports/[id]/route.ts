@@ -10,15 +10,20 @@ export async function PATCH(
   { params }: { params: Promise<{ id: string }> }
 ) {
   const session = await auth();
-  if (!session?.user || (session.user as any).role !== "admin") {
+  if (!session?.user || session.user.role !== "admin") {
     return Response.json({ error: "Forbidden" }, { status: 403 });
   }
 
   const { id } = await params;
-  const body = await request.json();
-  const { action } = body;
+  let body: { action?: string; note?: string };
+  try {
+    body = await request.json();
+  } catch {
+    return Response.json({ error: "Invalid JSON body" }, { status: 400 });
+  }
+  const { action, note } = body;
 
-  if (!["dismissed", "actioned"].includes(action)) {
+  if (action !== "dismissed" && action !== "actioned") {
     return Response.json({ error: "Invalid action. Use 'dismissed' or 'actioned'." }, { status: 422 });
   }
 
@@ -33,16 +38,17 @@ export async function PATCH(
     return Response.json({ error: "Report not found" }, { status: 404 });
   }
 
-  await db.update(reports).set({ status: action }).where(eq(reports.id, id));
-
   const now = Math.floor(Date.now() / 1000);
-  await db.insert(auditLog).values({
-    id: uuidv4(),
-    adminId: (session.user as any).id,
-    action: action === "dismissed" ? "dismiss_report" : "action_report",
-    targetId: id,
-    note: body.note || null,
-    createdAt: now,
+  await db.transaction(async (tx) => {
+    await tx.update(reports).set({ status: action }).where(eq(reports.id, id));
+    await tx.insert(auditLog).values({
+      id: uuidv4(),
+      adminId: session.user.id,
+      action: action === "dismissed" ? "dismiss_report" : "action_report",
+      targetId: id,
+      note: note || null,
+      createdAt: now,
+    });
   });
 
   return Response.json({ success: true });

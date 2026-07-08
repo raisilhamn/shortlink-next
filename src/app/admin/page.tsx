@@ -1,45 +1,32 @@
 import { db } from "@/lib/db";
-import { links, clicks, reports } from "@/lib/schema";
-import { eq, sql } from "drizzle-orm";
+import { sql } from "drizzle-orm";
 import { getSession } from "@/lib/auth-helpers";
 import { redirect } from "next/navigation";
+import Link from "next/link";
 
 export const dynamic = "force-dynamic";
 
 export default async function AdminPage() {
   const session = await getSession();
-  if (!session?.user || (session.user as any).role !== "admin") redirect("/dashboard");
+  if (!session?.user || session.user.role !== "admin") redirect("/dashboard");
 
-  const totalLinks = await db
-    .select({ count: sql<number>`count(*)` })
-    .from(links)
-    .then((r) => r[0].count);
+  const stats = await db
+    .get<{
+      totalLinks: number;
+      linksToday: number;
+      openReports: number;
+      suspendedLinks: number;
+      clicks7d: number;
+    }>(sql`
+      SELECT
+        (SELECT count(*) FROM links) AS totalLinks,
+        (SELECT count(*) FROM links WHERE created_at >= unixepoch() - 86400) AS linksToday,
+        (SELECT count(*) FROM reports WHERE status = 'pending') AS openReports,
+        (SELECT count(*) FROM links WHERE status = 'suspended') AS suspendedLinks,
+        (SELECT count(*) FROM clicks WHERE clicked_at >= unixepoch() - 7 * 86400) AS clicks7d
+    `);
 
-  const todayStart = Math.floor(Date.now() / 1000) - 86400;
-  const linksToday = await db
-    .select({ count: sql<number>`count(*)` })
-    .from(links)
-    .where(sql`created_at >= ${todayStart}`)
-    .then((r) => r[0].count);
-
-  const openReports = await db
-    .select({ count: sql<number>`count(*)` })
-    .from(reports)
-    .where(eq(reports.status, "pending"))
-    .then((r) => r[0].count);
-
-  const suspendedLinks = await db
-    .select({ count: sql<number>`count(*)` })
-    .from(links)
-    .where(eq(links.status, "suspended"))
-    .then((r) => r[0].count);
-
-  const sevenDaysAgo = Math.floor(Date.now() / 1000) - 7 * 86400;
-  const clicks7d = await db
-    .select({ count: sql<number>`count(*)` })
-    .from(clicks)
-    .where(sql`clicked_at >= ${sevenDaysAgo}`)
-    .then((r) => r[0].count);
+  const { totalLinks, linksToday, openReports, suspendedLinks, clicks7d } = stats;
 
   return (
     <div className="max-w-4xl mx-auto px-4 py-10">
@@ -70,27 +57,27 @@ export default async function AdminPage() {
       </div>
 
       <nav className="grid grid-cols-1 sm:grid-cols-3 gap-4">
-        <a
+        <Link
           href="/admin/reports"
           className="p-4 rounded-xl border border-zinc-200 dark:border-zinc-800 hover:bg-zinc-50 dark:hover:bg-zinc-900 transition-colors"
         >
           <h3 className="font-semibold">Reports</h3>
           <p className="text-sm text-zinc-500 mt-1">Review flagged links</p>
-        </a>
-        <a
+        </Link>
+        <Link
           href="/admin/links"
           className="p-4 rounded-xl border border-zinc-200 dark:border-zinc-800 hover:bg-zinc-50 dark:hover:bg-zinc-900 transition-colors"
         >
           <h3 className="font-semibold">All links</h3>
           <p className="text-sm text-zinc-500 mt-1">Search and manage links</p>
-        </a>
-        <a
+        </Link>
+        <Link
           href="/admin/audit"
           className="p-4 rounded-xl border border-zinc-200 dark:border-zinc-800 hover:bg-zinc-50 dark:hover:bg-zinc-900 transition-colors"
         >
           <h3 className="font-semibold">Audit log</h3>
           <p className="text-sm text-zinc-500 mt-1">Admin action history</p>
-        </a>
+        </Link>
       </nav>
     </div>
   );

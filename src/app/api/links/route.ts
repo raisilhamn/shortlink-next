@@ -1,5 +1,5 @@
 import { NextRequest } from "next/server";
-import { db } from "@/lib/db";
+import { db, isUniqueViolation } from "@/lib/db";
 import { links } from "@/lib/schema";
 import { createAccountLinkSchema } from "@/lib/validations";
 import { generateUniqueSlug } from "@/lib/slug";
@@ -15,16 +15,15 @@ export async function GET(request: NextRequest) {
     return Response.json({ error: "Unauthorized" }, { status: 401 });
   }
 
-  const userId = (session.user as any).id;
   const url = new URL(request.url);
-  const page = parseInt(url.searchParams.get("page") || "1");
-  const limit = parseInt(url.searchParams.get("limit") || "20");
+  const page = Math.max(1, parseInt(url.searchParams.get("page") || "1", 10) || 1);
+  const limit = Math.min(100, Math.max(1, parseInt(url.searchParams.get("limit") || "20", 10) || 20));
   const offset = (page - 1) * limit;
 
   const userLinks = await db
     .select()
     .from(links)
-    .where(eq(links.userId, userId))
+    .where(eq(links.userId, session.user.id))
     .orderBy(desc(links.createdAt))
     .limit(limit)
     .offset(offset);
@@ -39,7 +38,7 @@ export async function POST(request: NextRequest) {
   }
 
   const ip = getClientIP(request.headers);
-  const userId = (session.user as any).id;
+  const userId = session.user.id;
 
   if (!(await rateLimit(`create-link:${userId}`, 30, 3600_000))) {
     return Response.json({ error: "Too many links created. Please slow down." }, { status: 429 });
@@ -48,7 +47,12 @@ export async function POST(request: NextRequest) {
     return Response.json({ error: "Too many links created from this IP." }, { status: 429 });
   }
 
-  const body = await request.json();
+  let body: unknown;
+  try {
+    body = await request.json();
+  } catch {
+    return Response.json({ error: "Invalid JSON body" }, { status: 400 });
+  }
   const parsed = createAccountLinkSchema.safeParse(body);
   if (!parsed.success) {
     return Response.json(
@@ -58,22 +62,24 @@ export async function POST(request: NextRequest) {
   }
 
   const slug = parsed.data.slug || (await generateUniqueSlug());
-
-  const existing = await db.select({ id: links.id }).from(links).where(eq(links.slug, slug)).limit(1);
-  if (existing.length > 0) {
-    return Response.json({ error: "Slug already taken" }, { status: 409 });
-  }
-
   const now = Math.floor(Date.now() / 1000);
-  await db.insert(links).values({
-    id: uuidv4(),
-    slug,
-    destination: parsed.data.destination,
-    type: "account",
-    userId,
-    status: "active",
-    createdAt: now,
-  });
+
+  try {
+    await db.insert(links).values({
+      id: uuidv4(),
+      slug,
+      destination: parsed.data.destination,
+      type: "account",
+      userId,
+      status: "active",
+      createdAt: now,
+    });
+  } catch (error) {
+    if (isUniqueViolation(error)) {
+      return Response.json({ error: "Slug already taken" }, { status: 409 });
+    }
+    throw error;
+  }
 
   return Response.json({ slug, shortUrl: `${request.nextUrl.origin}/s/${slug}` }, { status: 201 });
 }

@@ -24,7 +24,10 @@ export default function NewLinkPage() {
 
       if (!res.ok) {
         const data = await res.json();
-        setError(data.error || data.details ? JSON.stringify(data.details) : "Failed to create link");
+        const detail = data.details
+          ? Object.values(data.details).map((v) => (v as string[]).join(", ")).join("; ")
+          : "";
+        setError(detail || data.error || "Failed to create link");
         return;
       }
 

@@ -4,8 +4,13 @@ function isPrivateHostname(hostname: string): boolean {
   if (hostname === "localhost" || hostname === "127.0.0.1" || hostname === "0.0.0.0" || hostname === "::1") {
     return true;
   }
-  if (hostname.startsWith("10.") || hostname.startsWith("192.168.") || hostname.startsWith("172.")) {
+  if (hostname.startsWith("10.") || hostname.startsWith("192.168.")) {
     return true;
+  }
+  const octets = hostname.split(".");
+  if (octets[0] === "172") {
+    const second = parseInt(octets[1], 10);
+    if (second >= 16 && second <= 31) return true;
   }
   if (hostname.endsWith(".local") || hostname.endsWith(".internal")) {
     return true;
@@ -68,11 +73,14 @@ export const loginSchema = z.object({
   password: z.string().min(1, "Password is required"),
 });
 
-const INVITE_CODE = process.env.INVITE_CODE || "";
-
 export const registerSchema = z.object({
   name: z.string().min(2, "Name must be at least 2 characters").max(50),
   email: z.string().email("Invalid email"),
   password: z.string().min(8, "Password must be at least 8 characters"),
-  inviteCode: z.string().refine((val) => val === INVITE_CODE, "Invalid invite code"),
+  inviteCode: z.string().refine(
+    // If INVITE_CODE is not configured, registration is closed — an unset
+    // env var must not make the empty string a valid invite code.
+    (val) => Boolean(process.env.INVITE_CODE) && val === process.env.INVITE_CODE,
+    "Invalid invite code"
+  ),
 });

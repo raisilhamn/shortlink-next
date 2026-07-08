@@ -25,7 +25,7 @@ export default function SignOutButton() {
             </button>
           </DialogClose>
           <button
-            onClick={() => signOut({ callbackUrl: "/" })}
+            onClick={() => signOut({ redirectTo: "/" })}
             className="px-4 py-2 rounded-lg bg-zinc-900 dark:bg-zinc-100 text-white dark:text-zinc-900 text-sm font-medium hover:bg-zinc-800 dark:hover:bg-zinc-200 cursor-pointer"
           >
             Sign out

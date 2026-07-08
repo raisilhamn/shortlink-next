@@ -1,40 +1,33 @@
 import { db } from "@/lib/db";
 import { links, clicks } from "@/lib/schema";
-import { desc, eq, sql, inArray } from "drizzle-orm";
+import { desc, eq, sql, inArray, getTableColumns } from "drizzle-orm";
 import { getSession } from "@/lib/auth-helpers";
 import { redirect } from "next/navigation";
+import Link from "next/link";
 import LinkActions from "../link-actions";
 
 export const dynamic = "force-dynamic";
 
 export default async function DeactivatedLinksPage() {
   const session = await getSession();
-  if (!session?.user || (session.user as any).role !== "admin") redirect("/dashboard");
+  if (!session?.user || session.user.role !== "admin") redirect("/dashboard");
 
   const inactiveLinks = await db
-    .select()
-    .from(links)
-    .where(inArray(links.status, ["disabled", "suspended"]))
-    .orderBy(desc(links.createdAt));
-
-  const clickCounts = await Promise.all(
-    inactiveLinks.map(async (link) => {
-      const count = await db
-        .select({ count: sql<number>`count(*)` })
-        .from(clicks)
-        .where(eq(clicks.linkId, link.id))
-        .then((r) => r[0].count);
-      return { linkId: link.id, count };
+    .select({
+      ...getTableColumns(links),
+      clickCount: sql<number>`count(${clicks.id})`,
     })
-  );
-
-  const countMap = Object.fromEntries(clickCounts.map((c) => [c.linkId, c.count]));
+    .from(links)
+    .leftJoin(clicks, eq(clicks.linkId, links.id))
+    .where(inArray(links.status, ["disabled", "suspended"]))
+    .groupBy(links.id)
+    .orderBy(desc(links.createdAt));
 
   return (
     <div className="max-w-5xl mx-auto px-4 py-10">
-      <a href="/admin/links" className="text-sm text-zinc-500 hover:text-zinc-700 dark:hover:text-zinc-300">
+      <Link href="/admin/links" className="text-sm text-zinc-500 hover:text-zinc-700 dark:hover:text-zinc-300">
         &larr; Back to all links
-      </a>
+      </Link>
       <h1 className="text-2xl font-bold mt-2 mb-6">Deactivated links</h1>
 
       {inactiveLinks.length === 0 ? (
@@ -78,7 +71,7 @@ export default async function DeactivatedLinksPage() {
                       {link.status}
                     </span>
                   </td>
-                  <td className="py-3 font-mono text-zinc-500">{countMap[link.id] || 0}</td>
+                  <td className="py-3 font-mono text-zinc-500">{link.clickCount}</td>
                   <td className="py-3 text-zinc-400 text-xs">
                     {new Date(link.createdAt * 1000).toLocaleDateString()}
                   </td>

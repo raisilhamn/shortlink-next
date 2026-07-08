@@ -8,3 +8,7 @@ const client = createClient({
 });
 
 export const db = drizzle(client, { schema });
+
+export function isUniqueViolation(error: unknown): boolean {
+  return error instanceof Error && /UNIQUE constraint failed/i.test(error.message);
+}

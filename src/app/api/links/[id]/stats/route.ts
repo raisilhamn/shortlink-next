@@ -2,7 +2,7 @@ import { NextRequest } from "next/server";
 import { db } from "@/lib/db";
 import { links, clicks } from "@/lib/schema";
 import { auth } from "@/lib/auth";
-import { eq, sql } from "drizzle-orm";
+import { and, eq, gte, sql, desc } from "drizzle-orm";
 
 export async function GET(
   request: NextRequest,
@@ -14,7 +14,6 @@ export async function GET(
   }
 
   const { id } = await params;
-  const userId = (session.user as any).id;
 
   const link = await db
     .select()
@@ -27,25 +26,23 @@ export async function GET(
     return Response.json({ error: "Not found" }, { status: 404 });
   }
 
-  if (link.userId !== userId && (session.user as any).role !== "admin") {
+  if (link.userId !== session.user.id && session.user.role !== "admin") {
     return Response.json({ error: "Forbidden" }, { status: 403 });
   }
 
   const url = new URL(request.url);
-  const days = parseInt(url.searchParams.get("days") || "90");
+  const days = Math.min(365, Math.max(1, parseInt(url.searchParams.get("days") || "90", 10) || 90));
   const cutoff = Math.floor(Date.now() / 1000) - days * 86400;
+  const inRange = and(eq(clicks.linkId, id), gte(clicks.clickedAt, cutoff));
 
-  const totalClicks = await db
-    .select({ count: sql<number>`count(*)` })
+  const totals = await db
+    .select({
+      total: sql<number>`count(*)`,
+      unique: sql<number>`count(DISTINCT ${clicks.ipHash})`,
+    })
     .from(clicks)
-    .where(sql`${clicks.linkId} = ${id} AND ${clicks.clickedAt} >= ${cutoff}`)
-    .then((r) => r[0].count);
-
-  const uniqueVisitors = await db
-    .select({ count: sql<number>`count(DISTINCT ${clicks.ipHash})` })
-    .from(clicks)
-    .where(sql`${clicks.linkId} = ${id} AND ${clicks.clickedAt} >= ${cutoff}`)
-    .then((r) => r[0].count);
+    .where(inRange)
+    .then((r) => r[0]);
 
   const byCountry = await db
     .select({
@@ -54,9 +51,9 @@ export async function GET(
       count: sql<number>`count(*)`,
     })
     .from(clicks)
-    .where(sql`${clicks.linkId} = ${id} AND ${clicks.clickedAt} >= ${cutoff}`)
-    .groupBy(clicks.countryCode)
-    .orderBy(sql`count(*) desc`);
+    .where(inRange)
+    .groupBy(clicks.countryCode, clicks.countryName)
+    .orderBy(desc(sql`count(*)`));
 
   const byReferrer = await db
     .select({
@@ -64,26 +61,27 @@ export async function GET(
       count: sql<number>`count(*)`,
     })
     .from(clicks)
-    .where(sql`${clicks.linkId} = ${id} AND ${clicks.clickedAt} >= ${cutoff}`)
+    .where(inRange)
     .groupBy(clicks.refererDomain)
-    .orderBy(sql`count(*) desc`)
+    .orderBy(desc(sql`count(*)`))
     .limit(20);
 
+  const day = sql<string>`date(${clicks.clickedAt}, 'unixepoch')`;
   const byDay = await db
     .select({
-      date: sql<string>`date(${clicks.clickedAt}, 'unixepoch')`,
+      date: day,
       count: sql<number>`count(*)`,
     })
     .from(clicks)
-    .where(sql`${clicks.linkId} = ${id} AND ${clicks.clickedAt} >= ${cutoff}`)
-    .groupBy(sql`date(${clicks.clickedAt}, 'unixepoch')`)
-    .orderBy(sql`date(${clicks.clickedAt}, 'unixepoch') desc`);
+    .where(inRange)
+    .groupBy(day)
+    .orderBy(day);
 
   return Response.json({
-    totalClicks,
-    uniqueVisitors,
+    totalClicks: totals.total,
+    uniqueVisitors: totals.unique,
     byCountry,
     byReferrer,
-    byDay: byDay.reverse(),
+    byDay,
   });
 }

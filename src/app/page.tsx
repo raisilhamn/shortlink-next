@@ -1,6 +1,6 @@
 "use client";
 
-import { useState, useEffect } from "react";
+import { useState, useSyncExternalStore, useCallback } from "react";
 import { toast } from "sonner";
 import CopyButton from "@/components/copy-button";
 
@@ -11,36 +11,62 @@ interface LinkItem {
   createdAt: number;
 }
 
+const HISTORY_KEY = "shortlink-history";
+const EMPTY_HISTORY: LinkItem[] = [];
+
+let historyCache: LinkItem[] = EMPTY_HISTORY;
+let historyCacheRaw: string | null = null;
+const historyListeners = new Set<() => void>();
+
+function readHistory(): LinkItem[] {
+  const raw = localStorage.getItem(HISTORY_KEY);
+  if (raw !== historyCacheRaw) {
+    historyCacheRaw = raw;
+    try {
+      historyCache = raw ? (JSON.parse(raw) as LinkItem[]) : EMPTY_HISTORY;
+    } catch {
+      historyCache = EMPTY_HISTORY;
+    }
+  }
+  return historyCache;
+}
+
+function writeHistory(items: LinkItem[]) {
+  localStorage.setItem(HISTORY_KEY, JSON.stringify(items));
+  historyListeners.forEach((listener) => listener());
+}
+
+function subscribeHistory(listener: () => void) {
+  historyListeners.add(listener);
+  window.addEventListener("storage", listener);
+  return () => {
+    historyListeners.delete(listener);
+    window.removeEventListener("storage", listener);
+  };
+}
+
+function useLinkHistory() {
+  const history = useSyncExternalStore(subscribeHistory, readHistory, () => EMPTY_HISTORY);
+
+  const add = useCallback((item: LinkItem) => {
+    writeHistory([item, ...readHistory().filter((h) => h.slug !== item.slug)].slice(0, 20));
+  }, []);
+
+  const clear = useCallback(() => {
+    writeHistory([]);
+  }, []);
+
+  return { history, add, clear };
+}
+
 export default function HomePage() {
   const [url, setUrl] = useState("");
   const [result, setResult] = useState<{ shortUrl: string; slug: string; expiresAt: number } | null>(null);
-  const [error, setError] = useState("");
   const [loading, setLoading] = useState(false);
-  const [history, setHistory] = useState<LinkItem[]>([]);
-
-  useEffect(() => {
-    const stored = localStorage.getItem("shortlink-history");
-    if (stored) {
-      try {
-        setHistory(JSON.parse(stored));
-      } catch {}
-    }
-  }, []);
-
-  function addToHistory(item: LinkItem) {
-    const updated = [item, ...history.filter((h) => h.slug !== item.slug)].slice(0, 20);
-    setHistory(updated);
-    localStorage.setItem("shortlink-history", JSON.stringify(updated));
-  }
-
-  function clearHistory() {
-    setHistory([]);
-    localStorage.removeItem("shortlink-history");
-  }
+  const { history, add: addToHistory, clear: clearHistory } = useLinkHistory();
 
   async function handleSubmit(e: React.FormEvent) {
     e.preventDefault();
-    setError("");
     setResult(null);
     setLoading(true);
 
@@ -55,9 +81,9 @@ export default function HomePage() {
 
       if (!res.ok) {
         const detail = data.details
-          ? Object.entries(data.details).map(([k, v]) => (v as string[]).join(", ")).join("; ")
+          ? Object.values(data.details).map((v) => (v as string[]).join(", ")).join("; ")
           : "";
-        toast.error(data.error + (detail ? ` — ${detail}` : ""));
+        toast.error((data.error || "Failed to create link") + (detail ? ` — ${detail}` : ""));
         return;
       }
 
@@ -99,12 +125,6 @@ export default function HomePage() {
         </button>
       </form>
 
-      {error && (
-        <div className="p-4 rounded-xl bg-red-50 dark:bg-red-950 border border-red-200 dark:border-red-800 text-red-700 dark:text-red-300 text-sm mb-4">
-          {error}
-        </div>
-      )}
-
       {result && (
         <div className="p-4 sm:p-6 rounded-xl bg-zinc-50 dark:bg-zinc-900 border border-zinc-200 dark:border-zinc-800 mb-6">
           <div className="flex items-center justify-between mb-3">
@@ -115,6 +135,7 @@ export default function HomePage() {
             <a
               href={result.shortUrl}
               target="_blank"
+              rel="noopener noreferrer"
               className="text-base sm:text-lg font-semibold text-blue-600 dark:text-blue-400 hover:underline break-all px-3 py-2 sm:px-0 sm:py-0 rounded-lg bg-white dark:bg-zinc-800 sm:bg-transparent dark:sm:bg-transparent"
             >
               {result.shortUrl}
@@ -145,6 +166,7 @@ export default function HomePage() {
                   <a
                     href={item.shortUrl}
                     target="_blank"
+                    rel="noopener noreferrer"
                     className="text-sm font-medium text-blue-600 dark:text-blue-400 hover:underline block truncate"
                   >
                     {item.shortUrl}

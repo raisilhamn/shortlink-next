@@ -4,15 +4,21 @@ import { links } from "@/lib/schema";
 import { createPublicLinkSchema } from "@/lib/validations";
 import { generateUniqueSlug } from "@/lib/slug";
 import { rateLimit } from "@/lib/rate-limit";
+import { getClientIP } from "@/lib/ip-lookup";
 import { v4 as uuidv4 } from "uuid";
 
 export async function POST(request: NextRequest) {
-  const ip = request.headers.get("x-forwarded-for")?.split(",")[0]?.trim() || "anonymous";
+  const ip = getClientIP(request.headers);
   if (!(await rateLimit(`public-link:${ip}`, 10, 60_000))) {
     return Response.json({ error: "Too many requests. Please slow down." }, { status: 429 });
   }
 
-  const body = await request.json();
+  let body: unknown;
+  try {
+    body = await request.json();
+  } catch {
+    return Response.json({ error: "Invalid JSON body" }, { status: 400 });
+  }
   const parsed = createPublicLinkSchema.safeParse(body);
   if (!parsed.success) {
     return Response.json(

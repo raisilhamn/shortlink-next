@@ -4,7 +4,7 @@ import { reports, links } from "@/lib/schema";
 import { createReportSchema } from "@/lib/validations";
 import { rateLimit } from "@/lib/rate-limit";
 import { getClientIP } from "@/lib/ip-lookup";
-import { eq, sql } from "drizzle-orm";
+import { and, eq, sql } from "drizzle-orm";
 import { v4 as uuidv4 } from "uuid";
 import { createHash } from "crypto";
 
@@ -16,7 +16,12 @@ export async function POST(request: NextRequest) {
     return Response.json({ error: "Too many reports. Limit: 3 per 24 hours." }, { status: 429 });
   }
 
-  const body = await request.json();
+  let body: unknown;
+  try {
+    body = await request.json();
+  } catch {
+    return Response.json({ error: "Invalid JSON body" }, { status: 400 });
+  }
   const parsed = createReportSchema.safeParse(body);
   if (!parsed.success) {
     return Response.json(
@@ -47,16 +52,18 @@ export async function POST(request: NextRequest) {
     createdAt: now,
   });
 
-  const reportCount = await db
+  // Only pending reports count toward auto-suspension — otherwise a link an
+  // admin already reviewed (dismissed reports) gets re-suspended forever.
+  const pendingCount = await db
     .select({ count: sql<number>`count(*)` })
     .from(reports)
-    .where(eq(reports.linkId, parsed.data.linkId))
+    .where(and(eq(reports.linkId, parsed.data.linkId), eq(reports.status, "pending")))
     .then((r) => r[0].count);
 
-  if (reportCount >= 5) {
+  if (pendingCount >= 5 && link.status === "active") {
     await db
       .update(links)
-      .set({ status: "suspended" })
+      .set({ status: "suspended", updatedAt: now })
       .where(eq(links.id, parsed.data.linkId));
   }
 

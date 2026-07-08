@@ -1,4 +1,4 @@
-import { sqliteTable, text, integer } from "drizzle-orm/sqlite-core";
+import { sqliteTable, text, integer, index } from "drizzle-orm/sqlite-core";
 import { sql } from "drizzle-orm";
 
 export const users = sqliteTable("users", {
@@ -20,7 +20,9 @@ export const links = sqliteTable("links", {
   expiresAt: integer("expires_at"),
   createdAt: integer("created_at").notNull().default(sql`(unixepoch())`),
   updatedAt: integer("updated_at"),
-});
+}, (table) => [
+  index("links_user_id_idx").on(table.userId),
+]);
 
 export const clicks = sqliteTable("clicks", {
   id: text("id").primaryKey(),
@@ -32,7 +34,9 @@ export const clicks = sqliteTable("clicks", {
   refererFull: text("referer_full"),
   uaFamily: text("ua_family"),
   ipHash: text("ip_hash"),
-});
+}, (table) => [
+  index("clicks_link_id_idx").on(table.linkId, table.clickedAt),
+]);
 
 export const reports = sqliteTable("reports", {
   id: text("id").primaryKey(),
@@ -42,7 +46,9 @@ export const reports = sqliteTable("reports", {
   reporterIpHash: text("reporter_ip_hash"),
   status: text("status", { enum: ["pending", "dismissed", "actioned"] }).default("pending").notNull(),
   createdAt: integer("created_at").notNull().default(sql`(unixepoch())`),
-});
+}, (table) => [
+  index("reports_link_id_idx").on(table.linkId),
+]);
 
 export const slugAliases = sqliteTable("slug_aliases", {
   oldSlug: text("old_slug").primaryKey(),

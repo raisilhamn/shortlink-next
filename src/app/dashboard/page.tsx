@@ -1,7 +1,8 @@
 import { db } from "@/lib/db";
 import { links, clicks } from "@/lib/schema";
-import { eq, desc, sql } from "drizzle-orm";
+import { eq, desc, sql, getTableColumns } from "drizzle-orm";
 import { getSession } from "@/lib/auth-helpers";
+import { getAppOrigin } from "@/lib/utils";
 import { redirect } from "next/navigation";
 import Link from "next/link";
 import CopyButton from "@/components/copy-button";
@@ -13,27 +14,18 @@ export default async function DashboardPage() {
   const session = await getSession();
   if (!session?.user) redirect("/login");
 
-  const userId = (session.user as any).id;
-
   const userLinks = await db
-    .select()
+    .select({
+      ...getTableColumns(links),
+      clickCount: sql<number>`count(${clicks.id})`,
+    })
     .from(links)
-    .where(eq(links.userId, userId))
+    .leftJoin(clicks, eq(clicks.linkId, links.id))
+    .where(eq(links.userId, session.user.id))
+    .groupBy(links.id)
     .orderBy(desc(links.createdAt));
 
-  const clickCounts = await Promise.all(
-    userLinks.map(async (link) => {
-      const count = await db
-        .select({ count: sql<number>`count(*)` })
-        .from(clicks)
-        .where(eq(clicks.linkId, link.id))
-        .then((r) => r[0].count);
-      return { linkId: link.id, count };
-    })
-  );
-
-  const countMap = Object.fromEntries(clickCounts.map((c) => [c.linkId, c.count]));
-  const origin = process.env.NEXT_PUBLIC_APP_URL || "https://shortlink-next-sigma.vercel.app";
+  const origin = getAppOrigin();
 
   return (
     <div className="max-w-4xl mx-auto px-4 py-10">
@@ -87,7 +79,7 @@ export default async function DashboardPage() {
                   </p>
                 </div>
                 <div className="text-right shrink-0 flex flex-col items-end gap-1">
-                  <p className="text-lg font-semibold">{countMap[link.id] || 0}</p>
+                  <p className="text-lg font-semibold">{link.clickCount}</p>
                   <p className="text-xs text-zinc-400">clicks</p>
                 </div>
               </div>

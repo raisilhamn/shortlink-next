@@ -1,20 +1,23 @@
 "use client";
 
-import { useState } from "react";
+import { useState, Suspense } from "react";
 import { signIn } from "next-auth/react";
-import { useRouter } from "next/navigation";
+import { useRouter, useSearchParams } from "next/navigation";
+import Link from "next/link";
 import { toast } from "sonner";
 
-export default function LoginPage() {
+function LoginForm() {
   const [email, setEmail] = useState("");
   const [password, setPassword] = useState("");
-  const [error, setError] = useState("");
   const [loading, setLoading] = useState(false);
   const router = useRouter();
+  const searchParams = useSearchParams();
+  const from = searchParams.get("from");
+  // Only allow internal paths so ?from= can't redirect off-site.
+  const destination = from && from.startsWith("/") && !from.startsWith("//") ? from : "/dashboard";
 
   async function handleSubmit(e: React.FormEvent) {
     e.preventDefault();
-    setError("");
     setLoading(true);
 
     try {
@@ -29,7 +32,7 @@ export default function LoginPage() {
         return;
       }
 
-      router.push("/dashboard");
+      router.push(destination);
       router.refresh();
     } catch {
       toast.error("An error occurred. Please try again.");
@@ -64,11 +67,6 @@ export default function LoginPage() {
             className="w-full px-3 py-2.5 rounded-xl border border-zinc-300 dark:border-zinc-700 bg-white dark:bg-zinc-900 text-sm focus:outline-none focus:ring-2 focus:ring-zinc-400"
           />
         </div>
-        {error && (
-          <div className="p-3 rounded-lg bg-red-50 dark:bg-red-950 border border-red-200 dark:border-red-800 text-red-700 dark:text-red-300 text-sm">
-            {error}
-          </div>
-        )}
         <button
           type="submit"
           disabled={loading}
@@ -79,8 +77,16 @@ export default function LoginPage() {
       </form>
       <p className="text-center text-sm text-zinc-500 dark:text-zinc-400 mt-6">
         Don&apos;t have an account?{" "}
-        <a href="/register" className="text-blue-600 dark:text-blue-400 hover:underline">Sign up</a>
+        <Link href="/register" className="text-blue-600 dark:text-blue-400 hover:underline">Sign up</Link>
       </p>
     </div>
+  );
+}
+
+export default function LoginPage() {
+  return (
+    <Suspense>
+      <LoginForm />
+    </Suspense>
   );
 }

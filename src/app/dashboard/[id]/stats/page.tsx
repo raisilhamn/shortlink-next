@@ -1,37 +1,106 @@
 "use client";
 
-import { useState, useEffect, use } from "react";
-import { BarChart, Bar, XAxis, YAxis, Tooltip, ResponsiveContainer, CartesianGrid, LabelList } from "recharts";
+import { useState, useEffect, use, useSyncExternalStore } from "react";
+import { BarChart, Bar, XAxis, YAxis, Tooltip, ResponsiveContainer, CartesianGrid } from "recharts";
 import { useRouter } from "next/navigation";
+import Link from "next/link";
 
 interface StatsData {
   totalClicks: number;
   uniqueVisitors: number;
-  byCountry: { countryCode: string; countryName: string; count: number }[];
-  byReferrer: { domain: string; count: number }[];
+  byCountry: { countryCode: string | null; countryName: string | null; count: number }[];
+  byReferrer: { domain: string | null; count: number }[];
   byDay: { date: string; count: number }[];
+}
+
+const RANGES = [7, 30, 90];
+
+function countryFlag(code: string | null): string {
+  if (!code || !/^[A-Z]{2}$/i.test(code)) return "🌐";
+  return String.fromCodePoint(
+    ...[...code.toUpperCase()].map((c) => 0x1f1e6 + c.charCodeAt(0) - 65)
+  );
+}
+
+// Recharts collapses days with no clicks, which distorts the time axis;
+// fill the full selected range with zero counts.
+function fillDays(byDay: { date: string; count: number }[], days: number) {
+  const counts = new Map(byDay.map((d) => [d.date, d.count]));
+  const out: { date: string; count: number }[] = [];
+  const today = new Date();
+  for (let i = days - 1; i >= 0; i--) {
+    const d = new Date(today);
+    d.setDate(d.getDate() - i);
+    const key = d.toISOString().slice(0, 10);
+    out.push({ date: key, count: counts.get(key) ?? 0 });
+  }
+  return out;
+}
+
+const DARK_QUERY = "(prefers-color-scheme: dark)";
+
+function subscribeToScheme(callback: () => void) {
+  const mq = window.matchMedia(DARK_QUERY);
+  mq.addEventListener("change", callback);
+  return () => mq.removeEventListener("change", callback);
+}
+
+function useIsDark() {
+  return useSyncExternalStore(
+    subscribeToScheme,
+    () => window.matchMedia(DARK_QUERY).matches,
+    () => false
+  );
+}
+
+function ShareList({
+  items,
+}: {
+  items: { key: string; icon?: string; label: string; count: number }[];
+}) {
+  const total = items.reduce((sum, item) => sum + item.count, 0) || 1;
+  return (
+    <div className="space-y-2">
+      {items.map((item) => {
+        const share = (item.count / total) * 100;
+        return (
+          <div key={item.key} className="text-sm">
+            <div className="flex items-center justify-between gap-3 py-0.5">
+              <span className="min-w-0 truncate">
+                {item.icon && <span className="mr-2">{item.icon}</span>}
+                {item.label}
+              </span>
+              <span className="font-mono text-zinc-500 shrink-0">
+                {item.count}
+                <span className="text-zinc-400 dark:text-zinc-600 ml-2 text-xs">
+                  {share.toFixed(0)}%
+                </span>
+              </span>
+            </div>
+            <div className="h-1.5 rounded-full bg-zinc-200 dark:bg-zinc-800 overflow-hidden">
+              <div
+                className="h-full rounded-full bg-zinc-900 dark:bg-zinc-300"
+                style={{ width: `${Math.max(share, 1.5)}%` }}
+              />
+            </div>
+          </div>
+        );
+      })}
+    </div>
+  );
 }
 
 export default function StatsPage({ params }: { params: Promise<{ id: string }> }) {
   const { id } = use(params);
   const router = useRouter();
+  const isDark = useIsDark();
   const [data, setData] = useState<StatsData | null>(null);
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState("");
   const [days, setDays] = useState(30);
-  const [barFill, setBarFill] = useState("#18181b");
 
   useEffect(() => {
-    const mq = window.matchMedia("(prefers-color-scheme: dark)");
-    setBarFill(mq.matches ? "#fff" : "#18181b");
-    const handler = (e: MediaQueryListEvent) =>
-      setBarFill(e.matches ? "#fff" : "#18181b");
-    mq.addEventListener("change", handler);
-    return () => mq.removeEventListener("change", handler);
-  }, []);
-
-  useEffect(() => {
-    setLoading(true);
+    let cancelled = false;
     fetch(`/api/links/${id}/stats?days=${days}`)
       .then(async (res) => {
         if (!res.ok) {
@@ -40,12 +109,28 @@ export default function StatsPage({ params }: { params: Promise<{ id: string }> 
         }
         return res.json();
       })
-      .then(setData)
-      .catch((e) => setError(e.message))
-      .finally(() => setLoading(false));
+      .then((json) => {
+        if (!cancelled) setData(json);
+      })
+      .catch((e) => {
+        if (!cancelled) setError(e.message);
+      })
+      .finally(() => {
+        if (!cancelled) setLoading(false);
+      });
+    return () => {
+      cancelled = true;
+    };
   }, [id, days, router]);
 
-  if (loading) {
+  function selectDays(r: number) {
+    if (r === days) return;
+    setDays(r);
+    setLoading(true);
+    setError("");
+  }
+
+  if (loading && !data) {
     return (
       <div className="max-w-4xl mx-auto px-4 py-10 flex justify-center">
         <svg className="animate-spin h-6 w-6 text-zinc-400" viewBox="0 0 24 24" fill="none">
@@ -66,22 +151,25 @@ export default function StatsPage({ params }: { params: Promise<{ id: string }> 
 
   if (!data) return null;
 
-  const ranges = [7, 30, 90];
+  const barFill = isDark ? "#e4e4e7" : "#18181b";
+  const gridStroke = isDark ? "#3f3f46" : "#e4e4e7";
+  const axisTick = { fontSize: 13, fill: "#71717a" };
+  const byDay = fillDays(data.byDay, days);
 
   return (
-    <div className="max-w-4xl mx-auto px-4 py-10">
+    <div className={`max-w-4xl mx-auto px-4 py-10 ${loading ? "opacity-60 transition-opacity" : ""}`}>
       <div className="mb-8">
-        <a href="/dashboard" className="text-sm text-zinc-500 hover:text-zinc-700 dark:hover:text-zinc-300">
+        <Link href="/dashboard" className="text-sm text-zinc-500 hover:text-zinc-700 dark:hover:text-zinc-300">
           &larr; Back to dashboard
-        </a>
+        </Link>
         <h1 className="text-2xl font-bold mt-2">Link Statistics</h1>
       </div>
 
       <div className="flex items-center gap-2 mb-6">
-        {ranges.map((r) => (
+        {RANGES.map((r) => (
           <button
             key={r}
-            onClick={() => setDays(r)}
+            onClick={() => selectDays(r)}
             className={`px-3 py-1.5 rounded-lg text-sm font-medium cursor-pointer ${
               days === r
                 ? "bg-zinc-900 dark:bg-zinc-100 text-white dark:text-zinc-900"
@@ -104,76 +192,67 @@ export default function StatsPage({ params }: { params: Promise<{ id: string }> 
         </div>
       </div>
 
-      {data.byCountry.length > 0 && (
-        <div className="mb-8 p-4 rounded-xl bg-zinc-50 dark:bg-zinc-900 border border-zinc-200 dark:border-zinc-800">
-          <h2 className="text-lg font-semibold mb-3">By country</h2>
-          <div className="space-y-1">
-            {data.byCountry.map((c) => (
-              <div key={c.countryCode || "unknown"} className="flex items-center justify-between text-sm py-1">
-                <span>{c.countryName || c.countryCode || "Unknown"}</span>
-                <span className="font-mono text-zinc-500">{c.count}</span>
-              </div>
-            ))}
-          </div>
-        </div>
-      )}
-
-      {data.byDay.length > 0 && (
+      {data.totalClicks > 0 && (
         <div className="mb-8 p-4 rounded-xl bg-zinc-50 dark:bg-zinc-900 border border-zinc-200 dark:border-zinc-800">
           <h2 className="text-lg font-semibold mb-4">Clicks by day</h2>
-          <style>{`
-            .chart-bar rect { fill: ${barFill}; }
-            .chart-bar rect:hover { fill: ${barFill === "#fff" ? "#e4e4e7" : "#27272a"}; }
-          `}</style>
           <ResponsiveContainer width="100%" height={280}>
-            <BarChart data={data.byDay} className="chart-bar" margin={{ top: 20, bottom: 5 }}>
-              <CartesianGrid strokeDasharray="3 3" stroke="#e4e4e7" opacity={0.5} />
+            <BarChart data={byDay} margin={{ top: 10, bottom: 5 }}>
+              <CartesianGrid strokeDasharray="3 3" stroke={gridStroke} opacity={0.5} vertical={false} />
               <XAxis
                 dataKey="date"
-                tick={{ fontSize: 13, fill: "#71717a" }}
+                tick={axisTick}
                 tickLine={false}
                 axisLine={false}
                 tickMargin={10}
-                tickFormatter={(v) => v.slice(5)}
+                interval="preserveStartEnd"
+                minTickGap={24}
+                tickFormatter={(v: string) => v.slice(5)}
               />
-              <YAxis allowDecimals={false} tick={{ fontSize: 13, fill: "#71717a" }} tickLine={false} axisLine={false} />
+              <YAxis allowDecimals={false} tick={axisTick} tickLine={false} axisLine={false} width={36} />
               <Tooltip
                 contentStyle={{
-                  background: barFill === "#fff" ? "#18181b" : "#fff",
-                  border: barFill === "#fff" ? "1px solid #3f3f46" : "1px solid #e4e4e7",
+                  background: isDark ? "#18181b" : "#fff",
+                  border: isDark ? "1px solid #3f3f46" : "1px solid #e4e4e7",
                   borderRadius: "8px",
                   fontSize: "14px",
-                  color: barFill === "#fff" ? "#fff" : "#18181b",
+                  color: isDark ? "#fafafa" : "#18181b",
                   padding: "8px 12px",
                 }}
-                cursor={{ fill: barFill === "#fff" ? "rgba(255,255,255,0.1)" : "rgba(24,24,27,0.08)" }}
+                labelStyle={{ color: "#71717a", marginBottom: 2 }}
+                itemStyle={{ color: isDark ? "#fafafa" : "#18181b" }}
+                formatter={(value) => [Number(value ?? 0), "clicks"]}
+                cursor={{ fill: isDark ? "rgba(255,255,255,0.08)" : "rgba(24,24,27,0.06)" }}
               />
-              <Bar dataKey="count" fill={barFill} radius={[4, 4, 0, 0]}>
-                <LabelList
-                  dataKey="count"
-                  position="insideTop"
-                  fill={barFill === "#fff" ? "#fff" : "#18181b"}
-                  fontSize={12}
-                  fontWeight={600}
-                  offset={8}
-                />
-              </Bar>
+              <Bar dataKey="count" fill={barFill} radius={[4, 4, 0, 0]} maxBarSize={40} />
             </BarChart>
           </ResponsiveContainer>
         </div>
       )}
 
+      {data.byCountry.length > 0 && (
+        <div className="mb-8 p-4 rounded-xl bg-zinc-50 dark:bg-zinc-900 border border-zinc-200 dark:border-zinc-800">
+          <h2 className="text-lg font-semibold mb-4">By country</h2>
+          <ShareList
+            items={data.byCountry.map((c) => ({
+              key: c.countryCode || "unknown",
+              icon: countryFlag(c.countryCode),
+              label: c.countryName || c.countryCode || "Unknown",
+              count: c.count,
+            }))}
+          />
+        </div>
+      )}
+
       {data.byReferrer.length > 0 && (
         <div className="mb-8 p-4 rounded-xl bg-zinc-50 dark:bg-zinc-900 border border-zinc-200 dark:border-zinc-800">
-          <h2 className="text-lg font-semibold mb-3">Top referrers</h2>
-          <div className="space-y-1">
-            {data.byReferrer.map((r) => (
-              <div key={r.domain} className="flex items-center justify-between text-sm py-1">
-                <span>{r.domain}</span>
-                <span className="font-mono text-zinc-500">{r.count}</span>
-              </div>
-            ))}
-          </div>
+          <h2 className="text-lg font-semibold mb-4">Top referrers</h2>
+          <ShareList
+            items={data.byReferrer.map((r) => ({
+              key: r.domain || "direct",
+              label: r.domain || "direct",
+              count: r.count,
+            }))}
+          />
         </div>
       )}
 

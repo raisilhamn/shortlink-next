@@ -3,6 +3,7 @@
 import { useState } from "react";
 import { useRouter } from "next/navigation";
 import { signIn } from "next-auth/react";
+import Link from "next/link";
 import { toast } from "sonner";
 
 export default function RegisterPage() {
@@ -33,6 +34,7 @@ export default function RegisterPage() {
         return;
       }
 
+      toast.success("Account created!");
       const result = await signIn("credentials", {
         email,
         password,
@@ -112,7 +114,7 @@ export default function RegisterPage() {
       </form>
       <p className="text-center text-sm text-zinc-500 dark:text-zinc-400 mt-6">
         Already have an account?{" "}
-        <a href="/login" className="text-blue-600 dark:text-blue-400 hover:underline">Sign in</a>
+        <Link href="/login" className="text-blue-600 dark:text-blue-400 hover:underline">Sign in</Link>
       </p>
     </div>
   );

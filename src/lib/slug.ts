@@ -4,7 +4,7 @@ import { eq } from "drizzle-orm";
 import { randomInt } from "crypto";
 
 export function generateNumericSlug(): string {
-  return String(randomInt(10000, 99999));
+  return String(randomInt(10000, 100000));
 }
 
 export async function generateUniqueSlug(maxAttempts = 10): Promise<string> {
