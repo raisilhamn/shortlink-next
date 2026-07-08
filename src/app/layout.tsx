@@ -1,10 +1,12 @@
 import type { Metadata } from "next";
 import { Geist, Geist_Mono } from "next/font/google";
 import Link from "next/link";
+import { Suspense } from "react";
 import "./globals.css";
 import { getSession } from "@/lib/auth-helpers";
 import SignOutButton from "./signout-button";
 import { Toaster } from "@/components/ui/sonner";
+import NavigationProgress from "@/components/navigation-progress";
 import { Analytics } from "@vercel/analytics/next";
 
 const geistSans = Geist({
@@ -34,6 +36,9 @@ export default async function RootLayout({
   return (
     <html lang="en" className={`${geistSans.variable} ${geistMono.variable} h-full antialiased`}>
       <body className="min-h-full flex flex-col bg-white dark:bg-zinc-950 text-zinc-900 dark:text-zinc-100">
+        <Suspense fallback={null}>
+          <NavigationProgress />
+        </Suspense>
         <header className="border-b border-zinc-200 dark:border-zinc-800">
           <div className="max-w-5xl mx-auto px-4 h-14 flex items-center justify-between gap-2">
             <Link href="/" className="font-semibold text-lg tracking-tight shrink-0 flex items-center gap-2">
