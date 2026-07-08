@@ -10,5 +10,16 @@ const client = createClient({
 export const db = drizzle(client, { schema });
 
 export function isUniqueViolation(error: unknown): boolean {
-  return error instanceof Error && /UNIQUE constraint failed/i.test(error.message);
+  // Drizzle wraps the driver error, so walk the cause chain.
+  let current: unknown = error;
+  for (let depth = 0; current instanceof Error && depth < 5; depth++) {
+    if (
+      /UNIQUE constraint failed/i.test(current.message) ||
+      ("code" in current && String(current.code).startsWith("SQLITE_CONSTRAINT"))
+    ) {
+      return true;
+    }
+    current = current.cause;
+  }
+  return false;
 }
